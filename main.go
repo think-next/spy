@@ -293,8 +293,8 @@ footer span{color:var(--muted)}
 </html>`)
 }
 
-func renderGame(w http.ResponseWriter) {
-	http.ServeFile(w, nil, "game.html")
+func renderGame(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "game.html")
 }
 
 func main() {
@@ -307,9 +307,8 @@ func main() {
 		w.Header().Set("Cache-Control", "public, max-age=300")
 		renderPage(w)
 	})
-	http.HandleFunc("/game", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		renderGame(w)
+		http.HandleFunc("/game", func(w http.ResponseWriter, r *http.Request) {
+		renderGame(w, r)
 	})
 	if err := http.ListenAndServe(":80", nil); err != nil {
 		log.Fatal(err)
