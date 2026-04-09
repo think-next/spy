@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>追光者 - think-next</title>
+<style>
+:root{
+  --bg:#0a0a0f;--fg:#e8e8f0;--muted:#666;--accent:#00e4a0;
+  --accent2:#00b8ff;--card:#13131f;--border:#1f1f33;
+  --radius:.75rem;--font:'Inter',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow:hidden;height:100vh;cursor:crosshair}
+
+/* HUD */
+.hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;z-index:100;background:linear-gradient(to bottom,rgba(10,10,15,.95) 60%,transparent);pointer-events:none}
+.hud>*{pointer-events:auto}
+.hud-left,.hud-right{display:flex;align-items:center;gap:1rem}
+.hud .label{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.hud .value{font-size:1.6rem;font-weight:700;font-family:var(--font-mono);color:var(--accent)}
+.hud .time{color:var(--accent2)}
+.hud .combo{color:#ffb347;font-size:.9rem;font-weight:600;min-width:60px;text-align:center}
+
+/* Nav */
+.nav{position:fixed;top:1rem;left:50%;transform:translateX(-50%);z-index:101}
+.nav a{color:var(--muted);font-size:.8rem;text-decoration:none;padding:.3rem .8rem;border:1px solid var(--border);border-radius:999px;transition:all .2s}
+.nav a:hover{color:var(--accent);border-color:var(--accent)}
+
+/* Canvas area */
+#arena{position:fixed;inset:0;z-index:1}
+
+/* Particles */
+.particle{position:fixed;pointer-events:none;z-index:50;border-radius:50%;animation:particleFade .6s ease-out forwards}
+@keyframes particleFade{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(0) translate(var(--tx),var(--ty))}}
+
+/* Score popup */
+.score-pop{position:fixed;pointer-events:none;z-index:60;font-family:var(--font-mono);font-weight:700;font-size:1.1rem;color:var(--accent);animation:scoreUp .7s ease-out forwards}
+@keyframes scoreUp{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-40px) scale(1.3)}}
+
+/* Start / End overlay */
+.overlay{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(10,10,15,.92);backdrop-filter:blur(12px);transition:opacity .3s}
+.overlay.hidden{opacity:0;pointer-events:none}
+.overlay h1{font-size:2.5rem;font-weight:700;letter-spacing:-.03em;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.5rem}
+.overlay p{color:var(--muted);font-size:1rem;margin-bottom:2rem;max-width:320px;text-align:center;line-height:1.6}
+.overlay .final-score{font-size:4rem;font-weight:700;font-family:var(--font-mono);color:var(--accent);margin-bottom:.3rem}
+.overlay .final-label{font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:1.5rem}
+.btn{padding:.7rem 2rem;border:none;border-radius:999px;font-size:.95rem;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .2s;color:var(--bg)}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.btn-primary:hover{transform:scale(1.05);box-shadow:0 0 30px rgba(0,228,160,.3)}
+.how{margin-top:1.5rem;padding:1rem 1.5rem;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);max-width:340px}
+.how h3{font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem}
+.how ul{list-style:none;font-size:.85rem;color:var(--muted);line-height:1.8}
+.how ul li::before{content:'→ ';color:var(--accent)}
+
+/* Stars */
+.star{position:fixed;z-index:10;pointer-events:none;border-radius:50%}
+
+/* Progress bar */
+.time-bar{position:fixed;bottom:0;left:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));z-index:100;transition:width .1s linear;box-shadow:0 0 10px var(--accent)}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<canvas id="arena"></canvas>
+<div class="time-bar" id="timeBar" style="width:100%"></div>
+
+<div class="hud" id="hud" style="display:none">
+  <div class="hud-left">
+    <div><div class="label">Score</div><div class="value" id="score">0</div></div>
+    <div class="combo" id="combo"></div>
+  </div>
+  <div class="hud-right">
+    <div><div class="label">Time</div><div class="value time" id="timer">30</div></div>
+  </div>
+</div>
+
+<div class="nav"><a href="/">← Home</a></div>
+
+<div class="overlay" id="startOverlay">
+  <h1>✦ 追光者</h1>
+  <p>在 30 秒内捕捉尽可能多的光点，连续命中获得连击加分</p>
+  <button class="btn btn-primary" id="startBtn">开始游戏</button>
+  <div class="how">
+    <h3>玩法</h3>
+    <ul>
+      <li>点击屏幕上出现的光点</li>
+      <li>光点会越来越快消失</li>
+      <li>连续命中获得 Combo 加分</li>
+      <li>金色光点分值 ×3</li>
+    </ul>
+  </div>
+</div>
+
+<div class="overlay hidden" id="endOverlay">
+  <h1>游戏结束</h1>
+  <div class="final-score" id="finalScore">0</div>
+  <div class="final-label">Final Score</div>
+  <p id="endMsg"></p>
+  <button class="btn btn-primary" id="retryBtn">再来一局</button>
+</div>
+
+<script>
+const canvas = document.getElementById('arena');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Background stars
+const stars = Array.from({length: 80}, () => ({
+  x: Math.random() * 2000, y: Math.random() * 2000,
+  r: Math.random() * 1.5 + 0.3,
+  a: Math.random(), s: (Math.random() - 0.5) * 0.01
+}));
+
+function drawBg() {
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0, 0, W, H);
+  for (const s of stars) {
+    s.a += s.s;
+    if (s.a > 1 || s.a < 0.2) s.s *= -1;
+    ctx.beginPath();
+    ctx.arc(s.x % W, s.y % H, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(200,200,255,${Math.max(0, s.a)})`;
+    ctx.fill();
+  }
+}
+
+// Game state
+let score = 0, combo = 0, maxCombo = 0, hits = 0, timeLeft = 30;
+let orbs = [], running = false, spawnTimer = null, clockTimer = null;
+let difficulty = 1;
+
+const scoreEl = document.getElementById('score');
+const timerEl = document.getElementById('timer');
+const comboEl = document.getElementById('combo');
+const hudEl = document.getElementById('hud');
+const timeBar = document.getElementById('timeBar');
+
+class Orb {
+  constructor() {
+    this.golden = Math.random() < 0.12;
+    this.r = this.golden ? 22 + Math.random() * 8 : 16 + Math.random() * 12;
+    this.x = this.r + Math.random() * (W - this.r * 2);
+    this.y = 80 + this.r + Math.random() * (H - this.r * 2 - 100);
+    this.life = Math.max(800, 2200 - difficulty * 120);
+    this.born = performance.now();
+    this.color = this.golden ? '#ffb347' : '#00e4a0';
+    this.glow = this.golden ? 'rgba(255,179,71,' : 'rgba(0,228,160,';
+    this.alive = true;
+    this.scale = 0;
+    this.pulse = Math.random() * Math.PI * 2;
+  }
+
+  age(now) { return now - this.born; }
+  progress(now) { return this.age(now) / this.life; }
+
+  draw(now) {
+    if (!this.alive) return;
+    const p = this.progress(now);
+    if (p >= 1) { this.alive = false; return; }
+
+    // Entry/exit animation
+    let s = 1;
+    if (p < 0.1) s = p / 0.1;
+    else if (p > 0.7) s = 1 - (p - 0.7) / 0.3;
+    this.scale = s;
+    this.pulse += 0.05;
+    const pr = this.r * s * (1 + Math.sin(this.pulse) * 0.08);
+
+    // Outer glow
+    const g = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, pr * 2.5);
+    g.addColorStop(0, this.glow + (0.3 * s) + ')');
+    g.addColorStop(1, this.glow + '0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(this.x - pr * 3, this.y - pr * 3, pr * 6, pr * 6);
+
+    // Core
+    const c = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, pr);
+    c.addColorStop(0, '#fff');
+    c.addColorStop(0.3, this.color);
+    c.addColorStop(1, this.glow + '0)');
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, Math.max(0.1, pr), 0, Math.PI * 2);
+    ctx.fillStyle = c;
+    ctx.fill();
+
+    // Ring (timer)
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, Math.max(0.1, pr + 4), -Math.PI / 2, -Math.PI / 2 + (1 - p) * Math.PI * 2);
+    ctx.strokeStyle = this.glow + (0.5 * s) + ')';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  hitTest(mx, my) {
+    const dx = mx - this.x, dy = my - this.y;
+    return dx * dx + dy * dy <= (this.r * this.scale + 10) ** 2;
+  }
+}
+
+function spawnOrb() {
+  orbs.push(new Orb());
+  const delay = Math.max(250, 600 - difficulty * 35);
+  spawnTimer = setTimeout(spawnOrb, delay + Math.random() * 300);
+}
+
+function spawnParticles(x, y, color, count = 8) {
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.className = 'particle';
+    const angle = (Math.PI * 2 / count) * i + Math.random() * 0.5;
+    const dist = 30 + Math.random() * 50;
+    el.style.cssText = `left:${x}px;top:${y}px;width:${4+Math.random()*4}px;height:${4+Math.random()*4}px;background:${color};--tx:${Math.cos(angle)*dist}px;--ty:${Math.sin(angle)*dist}px;`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 600);
+  }
+}
+
+function showScorePop(x, y, pts) {
+  const el = document.createElement('div');
+  el.className = 'score-pop';
+  el.textContent = '+' + pts;
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  el.style.color = pts >= 30 ? '#ffb347' : '#00e4a0';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 700);
+}
+
+function getPoints(orb) {
+  const base = orb.golden ? 15 : 5;
+  const multi = Math.min(combo, 10);
+  return base * (1 + multi * 0.3);
+}
+
+function getMsg() {
+  if (score >= 500) return '🧠 超凡入圣！你是追光之神！';
+  if (score >= 300) return '⚡ 闪电手速！非常厉害！';
+  if (score >= 150) return '🔥 身手不错，继续加油！';
+  if (score >= 80) return '✨ 潜力无限，再试试？';
+  return '🌱 多练练就好了！';
+}
+
+// Click handler
+document.addEventListener('click', e => {
+  if (!running) return;
+  const mx = e.clientX, my = e.clientY;
+  let hit = false;
+  for (let i = orbs.length - 1; i >= 0; i--) {
+    if (orbs[i].alive && orbs[i].hitTest(mx, my)) {
+      hit = true;
+      combo++;
+      if (combo > maxCombo) maxCombo = combo;
+      hits++;
+      const pts = Math.round(getPoints(orbs[i]));
+      score += pts;
+      scoreEl.textContent = score;
+      if (combo >= 3) comboEl.textContent = combo + 'x';
+      else comboEl.textContent = '';
+      spawnParticles(mx, my, orbs[i].color, orbs[i].golden ? 12 : 8);
+      showScorePop(mx, my, pts);
+      orbs[i].alive = false;
+      difficulty = 1 + score / 40;
+      break;
+    }
+  }
+  if (!hit) {
+    combo = 0;
+    comboEl.textContent = '';
+  }
+});
+
+// Game loop
+let raf;
+function loop(now) {
+  drawBg();
+  orbs = orbs.filter(o => o.alive);
+  for (const o of orbs) o.draw(now);
+  raf = requestAnimationFrame(loop);
+}
+
+function startGame() {
+  score = 0; combo = 0; maxCombo = 0; hits = 0; timeLeft = 30; difficulty = 1;
+  orbs = []; running = true;
+  scoreEl.textContent = '0';
+  timerEl.textContent = '30';
+  comboEl.textContent = '';
+  hudEl.style.display = 'flex';
+  timeBar.style.width = '100%';
+  document.getElementById('startOverlay').classList.add('hidden');
+  document.getElementById('endOverlay').classList.add('hidden');
+  spawnOrb();
+  clockTimer = setInterval(() => {
+    timeLeft--;
+    timerEl.textContent = timeLeft;
+    timeBar.style.width = (timeLeft / 30 * 100) + '%';
+    difficulty = 1 + (30 - timeLeft) * 0.5 + score / 80;
+    if (timeLeft <= 0) endGame();
+  }, 1000);
+  raf = requestAnimationFrame(loop);
+}
+
+function endGame() {
+  running = false;
+  clearTimeout(spawnTimer);
+  clearInterval(clockTimer);
+  cancelAnimationFrame(raf);
+  hudEl.style.display = 'none';
+  timeBar.style.width = '0%';
+  document.getElementById('finalScore').textContent = score;
+  document.getElementById('endMsg').textContent =
+    `命中 ${hits} 次 · 最大连击 ${maxCombo}x · ${getMsg()}`;
+  document.getElementById('endOverlay').classList.remove('hidden');
+}
+
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('retryBtn').addEventListener('click', startGame);
+
+// Idle animation
+(function idle() {
+  drawBg();
+  if (!running) requestAnimationFrame(idle);
+})();
+</script>
+</body></html>
