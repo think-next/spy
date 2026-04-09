@@ -242,6 +242,7 @@ footer span{color:var(--muted)}
   <div style="display:flex;gap:.6rem;justify-content:center;margin-top:1rem;flex-wrap:wrap">
     <div class="badge"><span class="dot"></span> always building</div>
     <a href="/game" class="badge" style="text-decoration:none;cursor:pointer">🎮 追光者</a>
+    <a href="/hot" class="badge" style="text-decoration:none;cursor:pointer">🔥 今日热榜</a>
   </div>
 </header>
 
@@ -285,6 +286,7 @@ footer span{color:var(--muted)}
 <nav style="display:flex;justify-content:center;gap:1.5rem;margin-bottom:1rem">
 <a href="/" style="color:var(--muted);font-size:.9rem">🏠 Home</a>
 <a href="/game" style="color:var(--muted);font-size:.9rem">🎮 Game</a>
+<a href="/hot" style="color:var(--muted);font-size:.9rem">🔥 热榜</a>
 </nav>
 <span>Go</span> · Notion · GitHub
 </footer>
@@ -297,6 +299,10 @@ func renderGame(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "game.html")
 }
 
+func renderHot(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "hot.html")
+}
+
 func main() {
 	notionToken = os.Getenv("NOTION_TOKEN")
 	githubToken = os.Getenv("GITHUB_TOKEN")
@@ -307,6 +313,9 @@ func main() {
 		w.Header().Set("Cache-Control", "public, max-age=300")
 		renderPage(w)
 	})
+		http.HandleFunc("/hot", func(w http.ResponseWriter, r *http.Request) {
+			renderHot(w, r)
+		})
 		http.HandleFunc("/game", func(w http.ResponseWriter, r *http.Request) {
 		renderGame(w, r)
 	})
