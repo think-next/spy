@@ -306,6 +306,7 @@ func renderHot(w http.ResponseWriter, r *http.Request) {
 func main() {
 	notionToken = os.Getenv("NOTION_TOKEN")
 	githubToken = os.Getenv("GITHUB_TOKEN")
+	store = NewAnalyticsStore("analytics_data.json")
 	log.Println("Starting server on :80...")
 	refreshCache()
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -313,12 +314,20 @@ func main() {
 		w.Header().Set("Cache-Control", "public, max-age=300")
 		renderPage(w)
 	})
-		http.HandleFunc("/hot", func(w http.ResponseWriter, r *http.Request) {
-			renderHot(w, r)
-		})
-		http.HandleFunc("/game", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/hot", func(w http.ResponseWriter, r *http.Request) {
+		renderHot(w, r)
+	})
+	http.HandleFunc("/game", func(w http.ResponseWriter, r *http.Request) {
 		renderGame(w, r)
 	})
+	http.HandleFunc("/analytics", func(w http.ResponseWriter, r *http.Request) {
+		renderAnalytics(w)
+	})
+	http.HandleFunc("/track.js", handleTrackJS)
+	http.HandleFunc("/api/collect", handleCollect)
+	http.HandleFunc("/api/stats", handleAPIStats)
+	http.HandleFunc("/api/visitors", handleAPIVisitors)
+	http.HandleFunc("/api/profile/", handleAPIProfile)
 	if err := http.ListenAndServe(":80", nil); err != nil {
 		log.Fatal(err)
 	}
