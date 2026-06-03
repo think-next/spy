@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>双色球数据分析</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:oklch(0.13 0.005 260);--surface:oklch(0.17 0.005 260);--card:oklch(0.20 0.006 260);
+--border:oklch(0.27 0.006 260);--fg:oklch(0.92 0 0);--muted:oklch(0.60 0 0);--dim:oklch(0.42 0 0);
+--accent:oklch(0.75 0.15 250);--red:oklch(0.65 0.20 25);--blue:oklch(0.65 0.18 250);
+--radius:0.75rem;--font-sans:'Inter',system-ui,sans-serif;--font-mono:'JetBrains Mono',monospace;}
+*{margin:0;padding:0;box-sizing:border-box}html{scroll-behavior:smooth}
+body{font-family:var(--font-sans);background:var(--bg);color:var(--fg);line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none;transition:color .2s}a:hover{color:oklch(0.85 0.18 250)}
+.container{max-width:1300px;margin:0 auto;padding:0 1.5rem}
+header{text-align:center;padding:3rem 1rem 1.5rem;position:relative;overflow:hidden}
+header::before{content:'';position:absolute;top:-40%;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,oklch(0.60 0.20 250/0.08) 0%,transparent 70%);pointer-events:none}
+header h1{font-size:2.2rem;font-weight:700;letter-spacing:-0.03em;background:linear-gradient(135deg,var(--fg) 40%,var(--red) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.5rem}
+header p{color:var(--muted);font-size:1rem}
+.stats-bar{display:flex;gap:1.5rem;justify-content:center;margin-top:1rem;flex-wrap:wrap}
+.stat-item{padding:.5rem 1rem;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);font-size:.85rem;color:var(--muted)}
+.stat-item strong{color:var(--fg);font-family:var(--font-mono)}
+.breadcrumb{display:flex;justify-content:center;gap:1.5rem;margin-bottom:1rem;flex-wrap:wrap}
+.breadcrumb a{padding:.4rem .9rem;border-radius:999px;background:var(--card);border:1px solid var(--border);color:var(--muted);font-size:.85rem;transition:all .2s}
+.breadcrumb a:hover{border-color:var(--accent);color:var(--accent)}
+.tabs{display:flex;justify-content:center;gap:0;margin-bottom:1.5rem;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:0}
+.tabs a{padding:.6rem 1rem;border:none;border-bottom:2px solid transparent;color:var(--muted);font-size:.85rem;transition:all .2s;cursor:pointer;background:transparent;border-radius:var(--radius) var(--radius) 0 0;margin-bottom:-1px}
+.tabs a:hover{color:var(--fg)}
+.tabs a.active{color:var(--fg);border-bottom-color:var(--accent);background:var(--card)}
+.tab-panel{display:none;animation:fadeUp .4s ease-out both}
+.tab-panel.active{display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(580px,1fr));gap:1rem;margin-bottom:2rem}
+.grid .full{grid-column:1/-1}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;transition:border-color .3s}
+.chart-card:hover{border-color:oklch(0.35 0.06 260)}
+.chart-card h3{font-size:.95rem;font-weight:600;margin-bottom:.75rem;display:flex;align-items:center;gap:.4rem}
+.chart-box{width:100%;height:380px}
+.chart-box.tall{height:450px}
+.chart-placeholder{width:100%;height:380px;display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:.9rem}
+.chart-placeholder.tall{height:450px}
+.table-wrap{overflow-x:auto;margin-top:.5rem}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th{text-align:left;padding:.5rem .75rem;border-bottom:1px solid var(--border);color:var(--muted);font-weight:500;white-space:nowrap}
+td{padding:.45rem .75rem;border-bottom:1px solid oklch(0.22 0.005 260);font-family:var(--font-mono);font-size:.8rem}
+tr:hover td{background:oklch(0.22 0.006 260)}
+.hot{color:oklch(0.70 0.22 25);font-weight:600}.warm{color:oklch(0.75 0.18 80);font-weight:500}.cold{color:oklch(0.60 0.12 250)}
+.ball-red{display:inline-block;min-width:1.6rem;height:1.6rem;line-height:1.6rem;text-align:center;border-radius:50%;background:oklch(0.55 0.20 25);color:#fff;font-size:.75rem;font-weight:600;margin:0 2px}
+.ball-blue{display:inline-block;min-width:1.6rem;height:1.6rem;line-height:1.6rem;text-align:center;border-radius:50%;background:oklch(0.55 0.18 250);color:#fff;font-size:.75rem;font-weight:600;margin:0 2px}
+footer{text-align:center;padding:2rem 0;color:var(--dim);font-size:.82rem;border-top:1px solid var(--border)}
+.loading{display:flex;justify-content:center;align-items:center;padding:4rem;color:var(--muted)}
+.spinner{width:2rem;height:2rem;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin-right:.75rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:640px){header h1{font-size:1.6rem}.grid{grid-template-columns:1fr}.chart-box{height:300px}.chart-box.tall{height:360px}.chart-placeholder{height:300px}.chart-placeholder.tall{height:360px}.container{padding:0 1rem}.tabs a{padding:.5rem .6rem;font-size:.78rem}}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <h1>🎱 双色球数据分析</h1>
+  <p>近 1 年 · 多维度可视化</p>
+  <div class="stats-bar">
+    <div class="stat-item">数据范围 <strong id="statRange">—</strong></div>
+    <div class="stat-item">总期数 <strong id="statCount">—</strong></div>
+    <div class="stat-item">最近一期 <strong id="statLatest">—</strong></div>
+  </div>
+</header>
+<div class="breadcrumb">
+  <a href="/">🏠 首页</a>
+  <a href="/ssq" class="active">🎱 双色球</a>
+</div>
+<div class="tabs" id="tabs">
+  <a href="#overview" class="active" data-tab="overview">📊 总览</a>
+  <a href="#trend" data-tab="trend">📈 走势分析</a>
+  <a href="#distribution" data-tab="distribution">📊 分布分析</a>
+  <a href="#advanced" data-tab="advanced">🔬 高级分析</a>
+  <a href="#binomial" data-tab="binomial">📐 二项分布</a>
+</div>
+<div id="loading" class="loading"><div class="spinner"></div>加载中...</div>
+<div id="app" style="display:none">
+  <!-- Tab: 总览 -->
+  <div class="tab-panel active" id="panel-overview">
+    <div class="grid">
+      <div class="chart-card full"><h3>🔴 红球号码出现频率</h3><div class="chart-box" id="cRedFreq"></div></div>
+      <div class="chart-card"><h3>🔵 蓝球号码出现频率</h3><div class="chart-box" id="cBlueFreq"></div></div>
+      <div class="chart-card"><h3>🌡️ 冷热号排行</h3><div class="table-wrap" id="hotCold"></div></div>
+    </div>
+    <div class="grid">
+      <div class="chart-card full"><h3>📋 最近 20 期开奖号码</h3><div class="table-wrap" id="recent"></div></div>
+    </div>
+  </div>
+  <!-- Tab: 走势分析 -->
+  <div class="tab-panel" id="panel-trend">
+    <div class="grid">
+      <div class="chart-card full"><h3>📈 红球和值走势</h3><div class="chart-box tall" id="cSum"></div></div>
+    </div>
+    <div class="grid">
+      <div class="chart-card full"><h3>📈 AC值/跨度走势图</h3><div class="chart-box tall" id="cACTrend"></div></div>
+    </div>
+    <div class="grid">
+      <div class="chart-card full"><h3>🔴 红球遗漏值热力图</h3><div class="chart-box tall" id="cRedMiss"></div></div>
+    </div>
+  </div>
+  <!-- Tab: 分布分析 -->
+  <div class="tab-panel" id="panel-distribution">
+    <div class="grid">
+      <div class="chart-card"><h3>⚖️ 奇偶比分布</h3><div class="chart-box" id="cOddEven"></div></div>
+      <div class="chart-card"><h3>📐 大小比分布</h3><div class="chart-box" id="cBigSmall"></div></div>
+    </div>
+    <div class="grid">
+      <div class="chart-card"><h3>🎯 三区间分布</h3><div class="chart-box" id="cZone"></div></div>
+      <div class="chart-card"><h3>🔢 尾数分布</h3><div class="chart-box" id="cTail"></div></div>
+    </div>
+    <div class="grid">
+      <div class="chart-card"><h3>📐 和值区间分布</h3><div class="chart-box" id="cSumZone"></div></div>
+      <div class="chart-card"><h3>🔢 质合比分布</h3><div class="chart-box" id="cPrime"></div></div>
+    </div>
+    <div class="grid">
+      <div class="chart-card"><h3>📅 月度开奖趋势</h3><div class="chart-box" id="cMonthly"></div></div>
+    </div>
+  </div>
+  <!-- Tab: 高级分析 -->
+  <div class="tab-panel" id="panel-advanced">
+    <div class="grid">
+      <div class="chart-card"><h3>🔗 连号统计</h3><div class="chart-box" id="cConsec"></div></div>
+      <div class="chart-card"><h3>🔗 重号分析</h3><div class="chart-box" id="cRepeat"></div></div>
+    </div>
+    <div class="grid">
+      <div class="chart-card"><h3>📐 邻号（斜连）分析</h3><div class="chart-box" id="cNeighbor"></div></div>
+      <div class="chart-card"><h3>🔄 同尾号统计</h3><div class="chart-box" id="cSameTail"></div></div>
+    </div>
+    <div class="grid">
+      <div class="chart-card"><h3>🎯 AC值分析</h3><div class="chart-box" id="cAC"></div></div>
+      <div class="chart-card"><h3>📏 跨度分析</h3><div class="chart-box" id="cSpan"></div></div>
+    </div>
+  </div>
+  <!-- Tab: 二项分布 -->
+  <div class="tab-panel" id="panel-binomial">
+    <div class="grid">
+      <div class="chart-card full"><h3>📊 红球二项式分布分析</h3><div class="chart-box tall" id="cBinRed"></div></div>
+    </div>
+    <div class="grid">
+      <div class="chart-card full"><h3>📊 蓝球二项式分布分析</h3><div class="chart-box" id="cBinBlue"></div></div>
+    </div>
+    <div class="grid">
+      <div class="chart-card full"><h3>🔵 蓝球遗漏值</h3><div class="chart-box" id="cBlueMiss"></div></div>
+    </div>
+  </div>
+</div>
+<footer>
+  <nav style="display:flex;justify-content:center;gap:1.5rem;margin-bottom:1rem">
+    <a href="/">首页</a><a href="/ssq">双色球</a>
+  </nav>
+  Go · ECharts · think-next
+</footer>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js" defer></script>
+<script>
+// ==================== Constants & State ====================
+const C={bg:'transparent',text:'#b0b0b0',title:'#e0e0e0',line:'#333',split:'#1e1e2e',
+  red:'#e8655a',blue:'#5b8ff9',green:'#5ad8a6',yellow:'#f6bd16',purple:'#7262fd',accent:'#5b8ff9',dim:'#666'};
+const tip={backgroundColor:'#1a1a2e',borderColor:'#333',textStyle:{color:'#e0e0e0'}};
+const grid={left:55,right:30,top:30,bottom:35};
+const axisLabel={color:C.text};
+const splitLine={lineStyle:{color:C.split}};
+
+let data=[];
+let chartInstances=new Map();
+let activeTab='overview';
+const renderedTabs=new Set();
+const TH={};
+
+// ==================== ECharts Instance Manager ====================
+function ec(id){
+  if(chartInstances.has(id))return chartInstances.get(id);
+  const el=document.getElementById(id);
+  if(!el)return null;
+  const c=echarts.init(el);
+  chartInstances.set(id,c);
+  return c;
+}
+
+function disposeCharts(exceptTabs){
+  for(const[id,inst]of chartInstances){
+    // Determine which tab a chart belongs to
+    const tab=getChartTab(id);
+    if(tab&&!exceptTabs.has(tab)){
+      inst.dispose();
+      chartInstances.delete(id);
+    }
+  }
+}
+
+function getChartTab(chartId){
+  const tabMap={
+    cRedFreq:'overview',cBlueFreq:'overview',hotCold:'overview',recent:'overview',
+    cSum:'trend',cACTrend:'trend',cRedMiss:'trend',
+    cOddEven:'distribution',cBigSmall:'distribution',cZone:'distribution',
+    cTail:'distribution',cSumZone:'distribution',cPrime:'distribution',cMonthly:'distribution',
+    cConsec:'advanced',cRepeat:'advanced',cNeighbor:'advanced',cSameTail:'advanced',
+    cAC:'advanced',cSpan:'advanced',
+    cBinRed:'binomial',cBinBlue:'binomial',cBlueMiss:'binomial'
+  };
+  return tabMap[chartId]||null;
+}
+
+// ==================== Window Resize ====================
+let resizeTimer;
+window.addEventListener('resize',()=>{
+  clearTimeout(resizeTimer);
+  resizeTimer=setTimeout(()=>{for(const[,inst]of chartInstances)inst.resize();},200);
+});
+
+// ==================== Theory Module ====================
+function calcTheory(){
+  const N=data.length;
+  const pRed=6/33,pBlue=1/16;
+  const popVar=(33*33-1)/12;
+  TH.redFreq={name:'红球频率',dist:'B(N, 6/33)',mean:N*pRed,var:N*pRed*(1-pRed),meanLabel:'μ = N×6/33'};
+  TH.blueFreq={name:'蓝球频率',dist:'B(N, 1/16)',mean:N*pBlue,var:N*pBlue*(1-pBlue),meanLabel:'μ = N×1/16'};
+  TH.sum={name:'和值',dist:'无放回抽样(6/33)',mean:6*17,var:6*(33-6)/(33-1)*popVar,meanLabel:'μ = 6×17 = 102'};
+  TH.oddEven={name:'奇数个数',dist:'超几何(6,33,17)',mean:6*17/33,var:6*(17/33)*(16/33)*(33-6)/(33-1),meanLabel:'μ = 6×17/33'};
+  TH.bigSmall={name:'大号个数',dist:'超几何(6,33,17)',mean:6*17/33,var:6*(17/33)*(16/33)*(33-6)/(33-1),meanLabel:'μ = 6×17/33'};
+  TH.prime={name:'质数个数',dist:'超几何(6,33,11)',mean:6*11/33,var:6*(11/33)*(22/33)*(33-6)/(33-1),meanLabel:'μ = 6×11/33 = 2'};
+  TH.repeat={name:'重号个数',dist:'近似 B(6, 6/33)',mean:6*pRed,var:6*pRed*(1-pRed),meanLabel:'μ ≈ 6×6/33'};
+  TH.blueMiss={name:'蓝球遗漏',dist:'几何分布 Geo(1/16)',mean:16,var:16*15,meanLabel:'μ = 16'};
+  TH.tail={name:'尾数频率',dist:'近似 B(N, 6/10)',mean:N*6/10,var:N*(6/10)*(4/10),meanLabel:'μ ≈ N×0.6'};
+  TH.N=N;
+}
+
+function theoryGraphic(id,th){
+  const sigma=Math.sqrt(th.var);
+  return{type:'group',left:'center',bottom:2,children:[
+    {type:'text',style:{text:'📊 '+th.dist,fill:'#666',fontSize:10}},
+    {type:'text',top:14,style:{text:th.meanLabel+' = '+th.mean.toFixed(2)+'   σ² = '+th.var.toFixed(2)+'   σ = '+sigma.toFixed(2)+'   [μ-σ, μ+σ] = ['+(th.mean-sigma).toFixed(2)+', '+(th.mean+sigma).toFixed(2)+']',fill:'#888',fontSize:10,fontFamily:'JetBrains Mono'}}
+  ]};
+}
+function theoryMarkLine(th,labelPrefix){
+  const sigma=Math.sqrt(th.var);
+  const labelStyle={color:C.yellow,fontSize:10,fontFamily:'JetBrains Mono'};
+  return{silent:true,symbol:'none',data:[
+    {yAxis:th.mean,label:{...labelStyle,position:'insideStartTop',formatter:(labelPrefix||'')+'μ='+th.mean.toFixed(2)},lineStyle:{color:C.yellow,type:'solid',width:1.5}},
+    {yAxis:th.mean+sigma,label:{...labelStyle,position:'insideStartTop',formatter:'μ+σ='+((th.mean+sigma).toFixed(2))},lineStyle:{color:'rgba(246,189,22,0.5)',type:'dashed',width:1}},
+    {yAxis:th.mean-sigma,label:{...labelStyle,position:'insideStartTop',formatter:'μ-σ='+((th.mean-sigma).toFixed(2))},lineStyle:{color:'rgba(246,189,22,0.5)',type:'dashed',width:1}}
+  ]};
+}
+function theoryMarkArea(th){
+  const sigma=Math.sqrt(th.var);
+  return{silent:true,data:[[{yAxis:th.mean-sigma,itemStyle:{color:'rgba(246,189,22,0.06)'}},{yAxis:th.mean+sigma}]]};
+}
+
+// ==================== Binomial Helpers ====================
+function binomialPMF(k,n,p){
+  if(k<0||k>n)return 0;let logP=0;
+  for(let i=0;i<k;i++)logP+=Math.log(n-i)-Math.log(i+1)+Math.log(p);
+  for(let i=0;i<n-k;i++)logP+=Math.log(1-p);return Math.exp(logP);
+}
+function binomStats(n,p){const mean=n*p,std=Math.sqrt(n*p*(1-p));return{mean:mean,std:std,lo:mean-1.96*std,hi:mean+1.96*std};}
+function calcAC(red){const s=red.map(Number).sort((a,b)=>a-b);const diffs=new Set();for(let i=0;i<s.length;i++)for(let j=i+1;j<s.length;j++)diffs.add(s[j]-s[i]);return diffs.size;}
+
+// ==================== Render Functions: Overview ====================
+function renderRedFreq(){
+  const f=Array(34).fill(0);data.forEach(d=>d.red.forEach(n=>f[+n]++));
+  const y=[];for(let i=1;i<=33;i++)y.push(f[i]);
+  const avg=y.reduce((a,b)=>a+b)/y.length;
+  ec('cRedFreq').setOption({tooltip:{...tip,trigger:'axis',formatter:p=>p[0].name+'号: <b style="color:'+C.red+'">'+p[0].value+'</b> 次'},
+    grid:{left:55,right:30,top:35,bottom:50},
+    xAxis:{type:'category',data:Array.from({length:33},(_,i)=>i+1),axisLabel,axisLine:{lineStyle:{color:C.split}}},
+    yAxis:{type:'value',name:'出现次数',nameTextStyle:{color:C.muted,fontSize:11},axisLabel,splitLine},
+    graphic:[theoryGraphic(null,TH.redFreq)],
+    series:[{type:'bar',data:y.map(v=>({value:v,itemStyle:{color:v>=avg?C.red:C.blue}})),barWidth:'60%',label:{show:true,position:'top',color:C.text,fontSize:10},markLine:theoryMarkLine(TH.redFreq),markArea:theoryMarkArea(TH.redFreq)}]});
+}
+function renderBlueFreq(){
+  const f=Array(17).fill(0);data.forEach(d=>f[+d.blue]++);
+  const y=[];for(let i=1;i<=16;i++)y.push(f[i]);
+  const avg=y.reduce((a,b)=>a+b)/y.length;
+  ec('cBlueFreq').setOption({tooltip:{...tip,trigger:'axis',formatter:p=>p[0].name+'号: <b style="color:'+C.blue+'">'+p[0].value+'</b> 次'},
+    grid:{left:55,right:30,top:35,bottom:50},
+    xAxis:{type:'category',data:Array.from({length:16},(_,i)=>i+1),axisLabel,axisLine:{lineStyle:{color:C.split}}},
+    yAxis:{type:'value',name:'次数',nameTextStyle:{color:C.muted,fontSize:11},axisLabel,splitLine},
+    graphic:[theoryGraphic(null,TH.blueFreq)],
+    series:[{type:'bar',data:y.map(v=>({value:v,itemStyle:{color:v>=avg?C.blue:C.purple}})),barWidth:'55%',label:{show:true,position:'top',color:C.text,fontSize:10},markLine:theoryMarkLine(TH.blueFreq),markArea:theoryMarkArea(TH.blueFreq)}]});
+}
+function renderHotCold(){
+  const rf=Array(34).fill(0),bf=Array(17).fill(0);
+  data.forEach(d=>{d.red.forEach(n=>rf[+n]++);bf[+d.blue]++;});
+  const ri=[],bi=[];
+  for(let i=1;i<=33;i++)ri.push({n:i,c:rf[i]});
+  for(let i=1;i<=16;i++)bi.push({n:i,c:bf[i]});
+  ri.sort((a,b)=>b.c-a.c);bi.sort((a,b)=>b.c-a.c);
+  let h='<table><tr><th colspan="8">🔥 红球热号 TOP8</th><th colspan="8">❄️ 红球冷号 TOP8</th></tr><tr>';
+  ri.slice(0,8).forEach(x=>h+='<td class="'+(x.c>=25?'hot':'warm')+'">'+String(x.n).padStart(2,'0')+' ('+x.c+')</td>');
+  h+='</tr><tr>';
+  ri.slice(-8).reverse().forEach(x=>h+='<td class="cold">'+String(x.n).padStart(2,'0')+' ('+x.c+')</td>');
+  h+='</tr></table>';
+  h+='<table style="margin-top:.75rem"><tr><th colspan="5">🔵 蓝球热号</th><th colspan="5">🔵 蓝球冷号</th></tr><tr>';
+  bi.slice(0,5).forEach(x=>h+='<td class="warm">'+String(x.n).padStart(2,'0')+' ('+x.c+')</td>');
+  h+='</tr><tr>';
+  bi.slice(-5).reverse().forEach(x=>h+='<td class="cold">'+String(x.n).padStart(2,'0')+' ('+x.c+')</td>');
+  h+='</tr></table>';
+  document.getElementById('hotCold').innerHTML=h;
+}
+function renderRecent(){
+  const r=data.slice(-20).reverse();
+  let h='<table><tr><th>期号</th><th>日期</th><th>红球</th><th>蓝球</th><th>和值</th><th>奇偶</th><th>大小</th></tr>';
+  r.forEach(d=>{
+    const sum=d.red.reduce((a,b)=>a+ +b,0);const odd=d.red.filter(n=>+n%2===1).length;const big=d.red.filter(n=>+n>16).length;
+    const rb=d.red.map(n=>'<span class="ball-red">'+n+'</span>').join('');
+    h+='<tr><td>'+d.issue+'</td><td>'+d.date+'</td><td>'+rb+'</td><td><span class="ball-blue">'+d.blue+'</span></td><td>'+sum+'</td><td>'+odd+':'+(6-odd)+'</td><td>'+big+':'+(6-big)+'</td></tr>';
+  });h+='</table>';document.getElementById('recent').innerHTML=h;
+}
+
+// ==================== Render Functions: Trend ====================
+function renderSum(){
+  const is=[],ss=[];
+  data.forEach(d=>{const s=d.red.reduce((a,b)=>a+parseInt(b),0);is.push(d.issue.slice(-3));ss.push(s);});
+  const avg=+(ss.reduce((a,b)=>a+b)/ss.length).toFixed(1);
+  ec('cSum').setOption({tooltip:{...tip,trigger:'axis'},
+    legend:{data:['和值','平均值','理论期望'],textStyle:{color:C.text},top:0,right:10},
+    grid:{left:55,right:30,top:40,bottom:45},
+    xAxis:{type:'category',data:is,axisLabel:{...axisLabel,fontSize:10,rotate:45,interval:9},axisLine:{lineStyle:{color:C.split}}},
+    yAxis:{type:'value',name:'和值',nameTextStyle:{color:C.muted},min:20,max:200,axisLabel,splitLine},
+    series:[
+      {name:'和值',type:'line',data:ss,smooth:true,symbol:'circle',symbolSize:4,lineStyle:{color:C.red,width:1.5},itemStyle:{color:C.red},areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(232,101,90,0.25)'},{offset:1,color:'rgba(232,101,90,0.02)'}])}},
+      {name:'平均值',type:'line',data:Array(ss.length).fill(avg),lineStyle:{color:C.yellow,type:'dashed',width:1},symbol:'none'},
+      {name:'理论期望',type:'line',data:Array(ss.length).fill(TH.sum.mean),lineStyle:{color:C.green,type:'dotted',width:2},symbol:'none'}
+    ],
+    graphic:[{type:'group',left:'center',bottom:2,children:[
+      {type:'text',style:{text:'📊 '+TH.sum.dist+'    '+TH.sum.meanLabel,fill:'#666',fontSize:10}},
+      {type:'text',top:14,style:{text:'实际均值='+avg+'  理论μ='+TH.sum.mean+'  σ='+Math.sqrt(TH.sum.var).toFixed(2)+'  实际σ='+Math.sqrt(ss.reduce((s,v)=>s+(v-avg)**2,0)/ss.length).toFixed(2),fill:'#888',fontSize:10,fontFamily:'JetBrains Mono'}}
+    ]}]});
+}
+function renderACTrend(){
+  const is=[],acVals=[],spanVals=[];
+  data.forEach(d=>{is.push(d.issue.slice(-3));const s=d.red.map(Number).sort((a,b)=>a-b);acVals.push(calcAC(d.red));spanVals.push(s[5]-s[0]);});
+  ec('cACTrend').setOption({tooltip:{...tip,trigger:'axis'},
+    legend:{data:['AC值','跨度'],textStyle:{color:C.text},top:0,right:10},
+    grid:{left:55,right:55,top:40,bottom:45},
+    xAxis:{type:'category',data:is,axisLabel:{...axisLabel,fontSize:10,rotate:45,interval:9},axisLine:{lineStyle:{color:C.split}}},
+    yAxis:[
+      {type:'value',name:'AC值',nameTextStyle:{color:C.muted},min:0,max:16,axisLabel,splitLine},
+      {type:'value',name:'跨度',nameTextStyle:{color:C.muted},min:0,max:35,axisLabel,splitLine}
+    ],
+    series:[
+      {name:'AC值',type:'line',data:acVals,smooth:true,symbol:'circle',symbolSize:3,lineStyle:{color:C.accent,width:1.5},itemStyle:{color:C.accent}},
+      {name:'跨度',type:'line',yAxisIndex:1,data:spanVals,smooth:true,symbol:'circle',symbolSize:3,lineStyle:{color:C.yellow,width:1.5},itemStyle:{color:C.yellow},areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(246,189,22,0.15)'},{offset:1,color:'rgba(246,189,22,0.01)'}])}}
+    ]});
+}
+function renderRedMiss(){
+  const last={};data.forEach((d,idx)=>{d.red.forEach(n=>{last[+n]=idx;});});
+  const N=data.length;const recent=Math.min(50,N);const heatData=[];
+  for(let b=1;b<=33;b++){let miss=N;for(let i=N-1;i>=0;i--){if(data[i].red.includes(String(b))){miss=N-1-i;break;}}
+    for(let i=0;i<recent;i++){const periodIdx=N-recent+i;let m=0;for(let j=periodIdx-1;j>=0;j--){m++;if(data[j].red.includes(String(b)))break;}heatData.push([i,b-1,m]);}}
+  const xLabels=[];for(let i=0;i<recent;i++)xLabels.push(data[N-recent+i].issue.slice(-3));
+  const yLabels=[];for(let i=1;i<=33;i++)yLabels.push(String(i).padStart(2,'0'));
+  ec('cRedMiss').setOption({tooltip:{...tip,formatter:p=>{const d=p.data;return yLabels[d[1]]+'号 @ '+xLabels[d[0]]+'<br/>遗漏 <b>'+d[2]+'</b> 期'}},
+    grid:{left:50,right:80,top:30,bottom:40},
+    xAxis:{type:'category',data:xLabels,axisLabel:{...axisLabel,fontSize:9,rotate:45,interval:4},axisLine:{lineStyle:{color:C.split}}},
+    yAxis:{type:'category',data:yLabels,axisLabel:{...axisLabel,fontSize:9},axisLine:{lineStyle:{color:C.split}}},
+    visualMap:{min:0,max:20,calculable:true,orient:'vertical',right:10,top:'center',textStyle:{color:C.text},inRange:{color:['#1a1a2e','#1e3a5f','#2d6a4f','#f6bd16','#e8655a']}},
+    series:[{type:'heatmap',data:heatData,label:{show:false},itemStyle:{borderWidth:1,borderColor:'#1a1a2e'}}]});
+}
+
+// ==================== Render Functions: Distribution ====================
+function renderOddEven(){
+  const d={};data.forEach(x=>{const o=x.red.filter(n=>+n%2===1).length;const k=o+':'+(6-o);d[k]=(d[k]||0)+1;});
+  const ks=Object.keys(d).sort();
+  ec('cOddEven').setOption({tooltip:{...tip,trigger:'item'},grid,
+    xAxis:{type:'category',data:ks,axisLabel,axisLine:{lineStyle:{color:C.split}}},
+    yAxis:{type:'value',name:'期数',nameTextStyle:{color:C.muted},axisLabel,splitLine},
+    series:[{type:'bar',data:ks.map(k=>d[k]),barWidth:'55%',itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:C.red},{offset:1,color:C.purple}]),borderRadius:[4,4,0,0]},label:{show:true,position:'top',color:C.text,fontSize:10}}]});
+}
+function renderBigSmall(){
+  const d={};data.forEach(x=>{const b=x.red.filter(n=>+n>16).length;const k=b+':'+(6-b);d[k]=(d[k]||0)+1;});
+  const ks=Object.keys(d).sort();
+  ec('cBigSmall').setOption({tooltip:{...tip,trigger:'item'},grid,
+    xAxis:{type:'category',data:ks,axisLabel,axisLine:{lineStyle:{color:C.split}}},
+    yAxis:{type:'value',name:'期数',nameTextStyle:{color:C.muted},axisLabel,splitLine},
+    series:[{type:'bar',data:ks.map(k=>d[k]),barWidth:'55%',itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:C.green},{offset:1,color:C.blue}]),borderRadius:[4,4,0,0]},label:{show:true,position:'top',color:C.text,fontSize:10}}]});
+}
+function renderZone(){
+  const z1=Array(12).fill(0),z2=Array(12).fill(0),z3=Array(12).fill(0);
+  data.forEach(d=>d.red.forEach(n=>{const v=+n;if(v<=11)z1[v-1]++;else if(v<=22)z2[v-12]++;else z3[v-23]++;}));
+  ec('cZone').setOption({tooltip:{...tip,trigger:'axis'},
+    legend:{data:['一区(01-11)','二区(12-22)','三区(23-33)'],textStyle:{color:C.text},top:0},
+    grid:{left:50,right:30,top:40,bottom:35},
+    xAxis:{type:'category',data:Array.from({length:11},(_,i)=>i+1),axisLabel,axisLine:{lineStyle:{color:C.split}}},
+    yAxis:{type:'value',name:'次数',nameTextStyle:{color:C.muted},axisLabel,splitLine},
+    series:[
+      {name:'一区(01-11)',type:'bar',data:z1,barWidth:'22%',itemStyle:{color:C.red}},
+      {name:'二区(12-22)',type:'bar',data:z2,barWidth:'22%',itemStyle:{color:C.yellow}},
+      {name:'三区(23-33)',type:'bar',data:z3,barWidth:'22%',itemStyle:{color:C.blue}}
+    ]});
+}
+function renderTail(){
+  const f=Array(10).fill(0);data.forEach(d=>{const s=new Set();d.red.forEach(n=>s.add(+n%10));s.forEach(t=>f[t]++);});
+  ec('cTail').setOption({tooltip:{...tip,trigger:'axis'},grid,
+    xAxis:{type:'category',data:Array.from({length:10},(_,i)=>i),axisLabel,axisLine:{lineStyle:{color:C.split}}},
+    yAxis:{type:'value',name:'出现次数',nameTextStyle:{color:C.muted},axisLabel,splitLine},
+    series:[{type:'bar',data:f,barWidth:'55%',itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:C.yellow},{offset:1,color:C.blue}]),borderRadius:[4,4,0,0]},label:{show:true,position:'top',color:C.text,fontSize:10}}]});
+}
+function renderSumZone(){
+  const zones={'21-50':0,'51-80':0,'81-100':0,'101-120':0,'121-140':0,'141-160':0,'161-199':0};
+  data.forEach(d=>{const s=d.red.reduce((a,b)=>a+ +b,0);for(const k of Object.keys(zones)){const[lo,hi]=k.split('-').map(Number);if(s>=lo&&s<=hi){zones[k]++;break;}}});
+  const ks=Object.keys(zones);const colors=[C.blue,C.green,C.yellow,C.red,C.purple,'#e8655a','#f6bd16'];
+  ec('cSumZone').setOption({tooltip:{...tip,trigger:'item'},
+    series:[{type:'pie',radius:['35%','65%'],center:['50%','55%'],label:{color:C.text,fontSize:11},itemStyle:{borderColor:'#1a1a2e',borderWidth:2},data:ks.map((k,i)=>({name:k,value:zones[k],itemStyle:{color:colors[i]}}))}]});
+}
+function renderPrime(){
+  const primes=new Set([2,3,5,7,11,13,17,19,23,29,31]);
+  const d={};data.forEach(x=>{const p=x.red.filter(n=>primes.has(+n)).length;const k=p+':'+(6-p);d[k]=(d[k]||0)+1;});
+  const ks=Object.keys(d).sort();
+  ec('cPrime').setOption({tooltip:{...tip,trigger:'item'},
+    grid:{left:55,right:30,top:35,bottom:50},
+    xAxis:{type:'category',data:ks.map(k=>'质'+k.replace(':',' 合')),axisLabel,axisLine:{lineStyle:{color:C.split}}},
+    yAxis:{type:'value',name:'期数',nameTextStyle:{color:C.muted},axisLabel,splitLine},
+    graphic:[theoryGraphic(null,TH.prime)],
+    series:[{type:'bar',data:ks.map(k=>d[k]),barWidth:'55%',itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:C.yellow},{offset:1,color:C.purple}]),borderRadius:[4,4,0,0]},label:{show:true,position:'top',color:C.text,fontSize:10}}]});
+}
+function renderMonthly(){
+  const m={};data.forEach(d=>{const k=d.date.slice(0,7);m[k]=(m[k]||0)+1;});
+  const ks=Object.keys(m).sort();
+  ec('cMonthly').setOption({tooltip:{...tip,trigger:'axis'},grid,
+    xAxis:{type:'category',data:ks,axisLabel:{...axisLabel,fontSize:10,rotate:30},axisLine:{lineStyle:{color:C.split}}},
+    yAxis:{type:'value',name:'期数',nameTextStyle:{color:C.muted},axisLabel,splitLine},
+    series:[{type:'bar',data:ks.map(k=>m[k]),barWidth:'50%',itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:C.accent},{offset:1,color:C.purple}]),borderRadius:[4,4,0,0]},label:{show:true,position:'top',color:C.text,fontSize:10}}]});
+}
+
+// ==================== Render Functions: Advanced ====================
+function renderConsec(){
+  const d={};data.forEach(x=>{const s=x.red.map(Number).sort((a,b)=>a-b);let mx=0,cur=0;
+    for(let i=1;i<s.length;i++){if(s[i]===s[i-1]+1){cur++;mx=Math.max(mx,cur);}else cur=0;}
+    const k=mx===0?'无连号':mx+'连号';d[k]=(d[k]||0)+1;});
+  const ks=Object.keys(d);const colors=[C.blue,C.green,C.yellow,C.red,C.purple];
+  ec('cConsec').setOption({tooltip:{...tip,trigger:'item'},
+    series:[{type:'pie',radius:['40%','70%'],center:['50%','55%'],label:{color:C.text,fontSize:12},itemStyle:{borderColor:'#1a1a2e',borderWidth:2},data:ks.map((k,i)=>({name:k,value:d[k],itemStyle:{color:colors[i%colors.length]}}))}]});
+}
+function renderRepeat(){
+  const d={};const actualVals=[];
+  for(let i=1;i<data.length;i++){
+    const cur=new Set(data[i].red.map(Number));const prev=new Set(data[i-1].red.map(Number));
+    let cnt=0;cur.forEach(n=>{if(prev.has(n))cnt++;});actualVals.push(cnt);
+    const k=cnt+'个重号';d[k]=(d[k]||0)+1;
+  }
+  const ks=Object.keys(d).sort((a,b)=>+a.replace(/\D/g,'')-(+b.replace(/\D/g,'')));
+  const colors=[C.blue,C.green,C.yellow,C.red,C.purple];
+  const actualMean=(actualVals.reduce((a,b)=>a+b,0)/actualVals.length).toFixed(2);
+  ec('cRepeat').setOption({tooltip:{...tip,trigger:'item'},
+    graphic:[{type:'group',left:'center',bottom:2,children:[
+      {type:'text',style:{text:'📊 '+TH.repeat.dist,fill:'#666',fontSize:10}},
+      {type:'text',top:14,style:{text:'理论μ='+TH.repeat.mean.toFixed(2)+'  实际均值='+actualMean+'  σ='+Math.sqrt(TH.repeat.var).toFixed(2),fill:'#888',fontSize:10,fontFamily:'JetBrains Mono'}}
+    ]}],
+    series:[{type:'pie',radius:['35%','65%'],center:['50%','55%'],label:{color:C.text,fontSize:12},itemStyle:{borderColor:'#1a1a2e',borderWidth:2},data:ks.map((k,i)=>({name:k,value:d[k],itemStyle:{color:colors[i%colors.length]}}))}]});
+}
+function renderNeighbor(){
+  const d={};
+  for(let i=1;i<data.length;i++){
+    const cur=new Set(data[i].red.map(Number));const prev=data[i-1].red.map(Number);
+    const neighbors=new Set();prev.forEach(n=>{neighbors.add(n-1);neighbors.add(n+1);});
+    let cnt=0;cur.forEach(n=>{if(neighbors.has(n))cnt++;});const k=cnt+'个邻号';d[k]=(d[k]||0)+1;
+  }
+  const ks=Object.keys(d).sort((a,b)=>+a.replace(/\D/g,'')-(+b.replace(/\D/g,'')));
+  const colors=[C.blue,C.green,C.yellow,C.red,C.purple];
+  ec('cNeighbor').setOption({tooltip:{...tip,trigger:'item'},
+    series:[{type:'pie',radius:['35%','65%'],center:['50%','55%'],label:{color:C.text,fontSize:12},itemStyle:{borderColor:'#1a1a2e',borderWidth:2},data:ks.map((k,i)=>({name:k,value:d[k],itemStyle:{color:colors[i%colors.length]}}))}]});
+}
+function renderSameTail(){
+  const d={};data.forEach(x=>{const tails=x.red.map(n=>+n%10);const m={};let pairs=0;
+    tails.forEach(t=>{m[t]=(m[t]||0)+1;if(m[t]===2)pairs++;});
+    const k=pairs===0?'无同尾':pairs+'组同尾';d[k]=(d[k]||0)+1;});
+  const ks=Object.keys(d).sort((a,b)=>+a.replace(/\D/g,'')-(+b.replace(/\D/g,'')));
+  ec('cSameTail').setOption({tooltip:{...tip,trigger:'item'},grid,
+    xAxis:{type:'category',data:ks,axisLabel,axisLine:{lineStyle:{color:C.split}}},
+    yAxis:{type:'value',name:'期数',nameTextStyle:{color:C.muted},axisLabel,splitLine},
+    series:[{type:'bar',data:ks.map(k=>d[k]),barWidth:'55%',itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:C.purple},{offset:1,color:C.blue}]),borderRadius:[4,4,0,0]},label:{show:true,position:'top',color:C.text,fontSize:10}}]});
+}
+function renderAC(){
+  const vals=[];data.forEach(d=>vals.push(calcAC(d.red)));
+  const d={};vals.forEach(v=>{d[v]=(d[v]||0)+1;});
+  const ks=Object.keys(d).sort((a,b)=>+a-+b);
+  ec('cAC').setOption({tooltip:{...tip,trigger:'axis'},grid,
+    xAxis:{type:'category',data:ks.map(k=>k+'点'),axisLabel,axisLine:{lineStyle:{color:C.split}}},
+    yAxis:{type:'value',name:'期数',nameTextStyle:{color:C.muted},axisLabel,splitLine},
+    series:[{type:'bar',data:ks.map(k=>d[k]),barWidth:'55%',itemStyle:{color:p=>{const v=+p.name.replace(/\D/g,'');return v>=7&&v<=13?C.green:C.red},borderRadius:[4,4,0,0]},label:{show:true,position:'top',color:C.text,fontSize:10}}]});
+}
+function renderSpan(){
+  const d={};data.forEach(x=>{const s=x.red.map(Number).sort((a,b)=>a-b);const span=s[5]-s[0];
+    const lo=Math.floor(span/5)*5;const hi=lo+4;const k=lo+'-'+hi;d[k]=(d[k]||0)+1;});
+  const ks=Object.keys(d).sort();
+  ec('cSpan').setOption({tooltip:{...tip,trigger:'axis'},grid,
+    xAxis:{type:'category',data:ks,axisLabel,axisLine:{lineStyle:{color:C.split}}},
+    yAxis:{type:'value',name:'期数',nameTextStyle:{color:C.muted},axisLabel,splitLine},
+    series:[{type:'bar',data:ks.map(k=>d[k]),barWidth:'55%',itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:C.green},{offset:1,color:C.blue}]),borderRadius:[4,4,0,0]},label:{show:true,position:'top',color:C.text,fontSize:10}}]});
+}
+
+// ==================== Render Functions: Binomial ====================
+function renderBinomialRed(){
+  const N=data.length,p=6/33;const st=binomStats(N,p);
+  const freq=Array(34).fill(0);data.forEach(d=>d.red.forEach(n=>freq[+n]++));
+  const actual=[],balls=[];
+  for(let i=1;i<=33;i++){balls.push(String(i).padStart(2,'0'));actual.push(freq[i]);}
+  const xMin=Math.max(0,Math.floor(st.lo)-2),xMax=Math.ceil(st.hi)+2;
+  const theory=[];for(let k=xMin;k<=xMax;k++)theory.push([k,binomialPMF(k,N,p)]);
+  const scatter=actual.map(v=>([v,binomialPMF(v,N,p)]));
+  ec('cBinRed').setOption({tooltip:{...tip,trigger:'axis'},
+    legend:{data:['理论分布 B('+N+', 6/33)','实际号码','95% 区间'],textStyle:{color:C.text},top:0},
+    grid:{left:65,right:40,top:45,bottom:45},
+    xAxis:{type:'value',name:'出现次数',nameTextStyle:{color:C.muted},axisLabel,splitLine,min:Math.max(0,Math.floor(st.lo)-3),max:Math.ceil(st.hi)+3},
+    yAxis:{type:'value',name:'概率密度',nameTextStyle:{color:C.muted},axisLabel,splitLine},
+    visualMap:{show:false,dimension:0,pieces:[{gte:Math.floor(st.lo),lte:Math.ceil(st.hi),color:C.green},{color:C.red}]},
+    series:[
+      {name:'理论分布 B('+N+', 6/33)',type:'line',data:theory,smooth:true,lineStyle:{color:C.accent,width:2.5},symbol:'none',z:2},
+      {name:'实际号码',type:'scatter',data:scatter,symbolSize:9,z:3,
+        itemStyle:{color:p=>{const v=p.value[0];return(v>=Math.floor(st.lo)&&v<=Math.ceil(st.hi))?C.green:C.red},borderColor:'#fff',borderWidth:1},
+        label:{show:true,formatter:p=>balls[p.dataIndex],position:'top',color:C.text,fontSize:9}},
+      {name:'95% 区间',type:'line',markArea:{silent:true,data:[[{xAxis:st.lo,itemStyle:{color:'rgba(90,216,166,0.08)'}},{xAxis:st.hi}]]},
+        markLine:{silent:true,symbol:'none',lineStyle:{color:C.yellow,type:'dashed',width:1.5},label:{color:C.yellow,fontSize:11},
+          data:[{xAxis:st.lo,name:'下界',label:{position:'start',formatter:'95%下界 '+st.lo.toFixed(1)}},{xAxis:st.hi,name:'上界',label:{position:'end',formatter:'95%上界 '+st.hi.toFixed(1)}}]},data:[]}
+    ],
+    graphic:[{type:'text',left:'center',bottom:5,style:{text:'μ='+st.mean.toFixed(1)+'  σ='+st.std.toFixed(2)+'  95%CI: ['+st.lo.toFixed(1)+', '+st.hi.toFixed(1)+']',fill:C.dim,fontSize:12,fontFamily:'JetBrains Mono'}}]
+  });
+}
+function renderBinomialBlue(){
+  const N=data.length,p=1/16;const st=binomStats(N,p);
+  const freq=Array(17).fill(0);data.forEach(d=>freq[+d.blue]++);
+  const actual=[],balls=[];
+  for(let i=1;i<=16;i++){balls.push(String(i).padStart(2,'0'));actual.push(freq[i]);}
+  const xMin=Math.max(0,Math.floor(st.lo)-1),xMax=Math.ceil(st.hi)+2;
+  const theory=[];for(let k=xMin;k<=xMax;k++)theory.push([k,binomialPMF(k,N,p)]);
+  const scatter=actual.map(v=>([v,binomialPMF(v,N,p)]));
+  ec('cBinBlue').setOption({tooltip:{...tip,trigger:'axis'},
+    legend:{data:['理论分布 B('+N+', 1/16)','实际号码','95% 区间'],textStyle:{color:C.text},top:0},
+    grid:{left:65,right:40,top:45,bottom:45},
+    xAxis:{type:'value',name:'出现次数',nameTextStyle:{color:C.muted},axisLabel,splitLine,min:Math.max(0,Math.floor(st.lo)-1),max:Math.ceil(st.hi)+2},
+    yAxis:{type:'value',name:'概率密度',nameTextStyle:{color:C.muted},axisLabel,splitLine},
+    visualMap:{show:false,dimension:0,pieces:[{gte:Math.floor(st.lo),lte:Math.ceil(st.hi),color:C.green},{color:C.red}]},
+    series:[
+      {name:'理论分布 B('+N+', 1/16)',type:'line',data:theory,smooth:true,lineStyle:{color:C.blue,width:2.5},symbol:'none',z:2},
+      {name:'实际号码',type:'scatter',data:scatter,symbolSize:11,z:3,
+        itemStyle:{color:p=>{const v=p.value[0];return(v>=Math.floor(st.lo)&&v<=Math.ceil(st.hi))?C.green:C.red},borderColor:'#fff',borderWidth:1},
+        label:{show:true,formatter:p=>balls[p.dataIndex],position:'top',color:C.text,fontSize:10}},
+      {name:'95% 区间',type:'line',markArea:{silent:true,data:[[{xAxis:st.lo,itemStyle:{color:'rgba(90,216,166,0.08)'}},{xAxis:st.hi}]]},
+        markLine:{silent:true,symbol:'none',lineStyle:{color:C.yellow,type:'dashed',width:1.5},label:{color:C.yellow,fontSize:11},
+          data:[{xAxis:st.lo,name:'下界',label:{position:'start',formatter:'95%下界 '+st.lo.toFixed(1)}},{xAxis:st.hi,name:'上界',label:{position:'end',formatter:'95%上界 '+st.hi.toFixed(1)}}]},data:[]}
+    ],
+    graphic:[{type:'text',left:'center',bottom:5,style:{text:'μ='+st.mean.toFixed(1)+'  σ='+st.std.toFixed(2)+'  95%CI: ['+st.lo.toFixed(1)+', '+st.hi.toFixed(1)+']',fill:C.dim,fontSize:12,fontFamily:'JetBrains Mono'}}]
+  });
+}
+function renderBlueMiss(){
+  const last={};data.forEach((d,idx)=>{last[+d.blue]=idx;});
+  const N=data.length;const miss=[],balls=[];
+  for(let i=1;i<=16;i++){balls.push(String(i).padStart(2,'0'));miss.push(N-1-(last[i]??-1));}
+  const colors=miss.map(v=>v>=20?C.red:v>=10?C.yellow:C.green);
+  ec('cBlueMiss').setOption({tooltip:{...tip,trigger:'axis',formatter:p=>balls[p[0].dataIndex]+'号: 遗漏 <b>'+p[0].value+'</b> 期'},
+    grid:{left:55,right:30,top:35,bottom:50},
+    xAxis:{type:'category',data:balls,axisLabel,axisLine:{lineStyle:{color:C.split}}},
+    yAxis:{type:'value',name:'遗漏期数',nameTextStyle:{color:C.muted},axisLabel,splitLine},
+    graphic:[theoryGraphic(null,TH.blueMiss)],
+    series:[{type:'bar',data:miss.map((v,i)=>({value:v,itemStyle:{color:colors[i]}})),barWidth:'55%',label:{show:true,position:'top',color:C.text,fontSize:10},
+      markLine:{silent:true,symbol:'none',data:[{yAxis:TH.blueMiss.mean,label:{color:C.yellow,fontSize:10,fontFamily:'JetBrains Mono',formatter:'E=16'},lineStyle:{color:C.yellow,type:'dashed',width:1.5}}]}}]});
+}
+
+// ==================== Tab Render Registry ====================
+const TAB_RENDERERS={
+  overview(){renderRedFreq();renderBlueFreq();renderHotCold();renderRecent();},
+  trend(){renderSum();renderACTrend();renderRedMiss();},
+  distribution(){renderOddEven();renderBigSmall();renderZone();renderTail();renderSumZone();renderPrime();renderMonthly();},
+  advanced(){renderConsec();renderRepeat();renderNeighbor();renderSameTail();renderAC();renderSpan();},
+  binomial(){renderBinomialRed();renderBinomialBlue();renderBlueMiss();}
+};
+
+// ==================== IntersectionObserver for lazy charts ====================
+function setupLazyObserver(panel){
+  const boxes=panel.querySelectorAll('.chart-box');
+  if(!boxes.length)return;
+  const observer=new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting){
+        e.target.classList.add('in-view');
+        observer.unobserve(e.target);
+      }
+    });
+  },{rootMargin:'100px'});
+  boxes.forEach(b=>observer.observe(b));
+}
+
+// ==================== Tab Switching ====================
+function switchTab(tab){
+  if(tab===activeTab&&renderedTabs.has(tab))return;
+  // Deactivate all panels
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tabs a').forEach(a=>a.classList.remove('active'));
+  // Activate target
+  const panel=document.getElementById('panel-'+tab);
+  const tabBtn=document.querySelector('.tabs a[data-tab="'+tab+'"]');
+  if(panel)panel.classList.add('active');
+  if(tabBtn)tabBtn.classList.add('active');
+  // Dispose charts from other tabs
+  disposeCharts(new Set([tab]));
+  // Render if not yet
+  if(!renderedTabs.has(tab)&&TAB_RENDERERS[tab]){
+    // Use requestAnimationFrame to ensure DOM is visible before rendering
+    requestAnimationFrame(()=>{TAB_RENDERERS[tab]();renderedTabs.add(tab);setupLazyObserver(panel);});
+  }else{
+    // Re-setup resize for any existing charts
+    requestAnimationFrame(()=>setupLazyObserver(panel));
+  }
+  activeTab=tab;
+  window.location.hash=tab;
+}
+
+// ==================== Initialization ====================
+async function init(){
+  try{
+    const r=await fetch('/api/ssq/data');data=await r.json();
+  }catch(e){
+    try{const r=await fetch('/data/ssq_1year.json');data=await r.json();}catch(e2){
+      document.getElementById('loading').innerHTML='<p>数据加载失败</p>';return;}
+  }
+  if(!data.length){document.getElementById('loading').innerHTML='<p>数据为空</p>';return;}
+  // Update stats
+  document.getElementById('statRange').textContent=data[0].date+' ~ '+data[data.length-1].date;
+  document.getElementById('statCount').textContent=data.length+' 期';
+  document.getElementById('statLatest').textContent=data[data.length-1].issue;
+  // Calc theory values
+  calcTheory();
+  // Show app, hide loading
+  document.getElementById('loading').style.display='none';
+  document.getElementById('app').style.display='block';
+  // Determine initial tab from hash
+  const hash=window.location.hash.slice(1);
+  const validTabs=Object.keys(TAB_RENDERERS);
+  const initialTab=validTabs.includes(hash)?hash:'overview';
+  switchTab(initialTab);
+}
+
+// ==================== Event Listeners ====================
+document.getElementById('tabs').addEventListener('click',e=>{
+  const a=e.target.closest('a[data-tab]');
+  if(a)e.preventDefault(),switchTab(a.dataset.tab);
+});
+window.addEventListener('hashchange',()=>{
+  const hash=window.location.hash.slice(1);
+  const validTabs=Object.keys(TAB_RENDERERS);
+  if(validTabs.includes(hash))switchTab(hash);
+});
+
+// Wait for ECharts to load, then init
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',init);
+}else{
+  init();
+}
+</script>
+</body>
+</html>

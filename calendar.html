@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>日历</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:oklch(0.13 0.005 260);--card:oklch(0.20 0.006 260);
+  --border:oklch(0.27 0.006 260);--fg:oklch(0.92 0 0);
+  --muted:oklch(0.60 0 0);--dim:oklch(0.42 0 0);
+  --accent:oklch(0.75 0.15 250);--red:oklch(0.65 0.22 25);
+  --radius:0.75rem;--font-sans:'Inter',system-ui,sans-serif;--font-mono:'JetBrains Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font-sans);background:var(--bg);color:var(--fg);line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none;transition:color .2s}
+a:hover{color:oklch(0.85 0.18 250)}
+.container{max-width:1200px;margin:0 auto;padding:0 1.5rem}
+header{text-align:center;padding:3rem 1rem 2rem;position:relative;overflow:hidden}
+header::before{content:'';position:absolute;top:-40%;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,oklch(0.60 0.20 250/0.08) 0%,transparent 70%);pointer-events:none}
+header h1{font-size:2.2rem;font-weight:700;letter-spacing:-0.03em;margin-bottom:.5rem}
+header p{color:var(--muted);font-size:1rem}
+nav{display:flex;justify-content:center;gap:1.5rem;margin-bottom:2rem;flex-wrap:wrap}
+nav a{padding:.4rem .9rem;border-radius:999px;background:var(--card);border:1px solid var(--border);color:var(--muted);font-size:.85rem;transition:all .2s}
+nav a:hover{border-color:var(--accent);color:var(--accent)}
+nav a.active{background:oklch(0.25 0.04 250);border-color:var(--accent);color:var(--fg)}
+footer{text-align:center;padding:2rem 0;color:var(--dim);font-size:.82rem;border-top:1px solid var(--border)}
+
+/* Calendar controls */
+.cal-controls{display:flex;justify-content:center;align-items:center;gap:1.5rem;margin-bottom:1.5rem}
+.cal-controls button{background:var(--card);border:1px solid var(--border);color:var(--fg);padding:.5rem 1.2rem;border-radius:var(--radius);cursor:pointer;font-size:.9rem;transition:all .2s}
+.cal-controls button:hover{border-color:var(--accent);color:var(--accent)}
+.cal-month{font-size:1.3rem;font-weight:600;min-width:180px;text-align:center}
+
+/* Calendar grid */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;max-width:900px;margin:0 auto}
+.cal-header{display:flex;align-items:center;justify-content:center;padding:.6rem 0;color:var(--muted);font-size:.82rem;font-weight:600;text-transform:uppercase}
+.cal-header.weekend{color:var(--red)}
+.cal-cell{min-height:110px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:.5rem;transition:border-color .2s,box-shadow .2s;position:relative}
+.cal-cell:hover{border-color:oklch(0.35 0.06 260)}
+.cal-cell.empty{background:transparent;border-color:transparent;min-height:auto;padding:.3rem}
+.cal-cell.empty:hover{border-color:transparent}
+.cal-cell.today{border-color:var(--red);box-shadow:0 0 20px oklch(0.65 0.22 25/0.25),0 0 0 1px var(--red)}
+.cal-day{font-size:.85rem;font-weight:600;color:var(--fg);margin-bottom:.3rem;font-family:var(--font-mono)}
+.cal-cell.weekend .cal-day{color:var(--red)}
+.cal-cell.today .cal-day{color:var(--red);font-size:1rem}
+.cal-tag{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .5rem;border-radius:999px;font-size:.72rem;font-weight:500;margin-top:.2rem}
+.cal-tag.income{background:oklch(0.25 0.04 160);color:oklch(0.80 0.18 160);border:1px solid oklch(0.35 0.06 160)}
+.cal-tag.today-tag{background:oklch(0.45 0.22 25);color:#fff;border:1px solid oklch(0.55 0.24 25);font-size:.78rem;font-weight:700;animation:pulse 2s ease-in-out infinite}
+.cal-tag.misc{background:oklch(0.25 0.02 250);color:var(--muted);border:1px solid var(--border)}
+
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 oklch(0.65 0.22 25/0.3)}50%{box-shadow:0 0 8px 2px oklch(0.65 0.22 25/0.15)}}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:oklch(0 0 0/0.6);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:2rem;max-width:400px;width:90%;animation:fadeUp .2s ease-out}
+.modal h3{font-size:1.1rem;margin-bottom:1rem}
+.modal input,.modal textarea{width:100%;padding:.6rem .8rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--fg);font-family:var(--font-sans);font-size:.9rem;margin-bottom:.75rem;outline:none;transition:border-color .2s}
+.modal input:focus,.modal textarea:focus{border-color:var(--accent)}
+.modal textarea{resize:vertical;min-height:60px}
+.modal-actions{display:flex;gap:.5rem;justify-content:flex-end}
+.modal-actions button{padding:.5rem 1rem;border-radius:var(--radius);border:1px solid var(--border);background:var(--card);color:var(--fg);cursor:pointer;font-size:.85rem;transition:all .2s}
+.modal-actions button:hover{border-color:var(--accent)}
+.modal-actions button.primary{background:oklch(0.25 0.04 250);border-color:var(--accent);color:var(--fg)}
+.modal-actions button.delete{background:oklch(0.30 0.12 25);border-color:oklch(0.40 0.14 25);color:#fff}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:640px){
+  .container{padding:0 .5rem}
+  .cal-cell{min-height:70px;padding:.3rem}
+  .cal-day{font-size:.75rem}
+  .cal-tag{font-size:.65rem;padding:.15rem .35rem}
+}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <h1>📅 日历</h1>
+  <p>收支记录与日程管理</p>
+</header>
+<nav>
+  <a href="/">🏠 首页</a>
+  <a href="/ssq">🎱 双色球</a>
+  <a href="/calendar" class="active">📅 日历</a>
+</nav>
+<div class="cal-controls">
+  <button onclick="changeMonth(-1)">◀ 上月</button>
+  <div class="cal-month" id="calMonth"></div>
+  <button onclick="changeMonth(1)">下月 ▶</button>
+  <button onclick="goToday()" style="margin-left:.5rem">📍 今天</button>
+</div>
+<div class="cal-grid" id="calGrid"></div>
+</div>
+<footer>
+  <nav style="display:flex;justify-content:center;gap:1.5rem;margin-bottom:1rem">
+    <a href="/">首页</a><a href="/ssq">双色球</a><a href="/calendar">日历</a>
+  </nav>
+  Go · think-next
+</footer>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modalTitle">编辑标签</h3>
+    <input id="tagText" placeholder="标签文字（如：500收入）" />
+    <div style="margin-bottom:.75rem">
+      <label style="font-size:.85rem;color:var(--muted);margin-bottom:.3rem;display:block">类型</label>
+      <select id="tagType" style="width:100%;padding:.6rem .8rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--fg);font-size:.9rem">
+        <option value="income">💰 收入</option>
+        <option value="expense">📉 支出</option>
+        <option value="misc">📝 备注</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="delete" id="btnDelete" onclick="deleteTag()">删除</button>
+      <button onclick="closeModal()">取消</button>
+      <button class="primary" onclick="saveTag()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const WEEKDAYS=['日','一','二','三','四','五','六'];
+const now=new Date();
+let curYear=now.getFullYear(), curMonth=now.getMonth();
+let tags=JSON.parse(localStorage.getItem('calTags')||'{}');
+let editingDate=null;
+
+function key(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+
+function render(){
+  document.getElementById('calMonth').textContent=`${curYear}年${curMonth+1}月`;
+  const grid=document.getElementById('calGrid');
+  grid.innerHTML='';
+  // Weekday headers
+  WEEKDAYS.forEach((w,i)=>{
+    const el=document.createElement('div');
+    el.className='cal-header'+(i===0||i===6?' weekend':'');
+    el.textContent=w;
+    grid.appendChild(el);
+  });
+  const firstDay=new Date(curYear,curMonth,1).getDay();
+  const daysInMonth=new Date(curYear,curMonth+1,0).getDate();
+  // Empty cells
+  for(let i=0;i<firstDay;i++){const el=document.createElement('div');el.className='cal-cell empty';grid.appendChild(el);}
+  // Day cells
+  for(let d=1;d<=daysInMonth;d++){
+    const date=new Date(curYear,curMonth,d);
+    const k=key(date);
+    const isToday=date.getFullYear()===now.getFullYear()&&date.getMonth()===now.getMonth()&&date.getDate()===now.getDate();
+    const dow=date.getDay();
+    const el=document.createElement('div');
+    el.className='cal-cell'+(isToday?' today':'')+(dow===0||dow===6?' weekend':'');
+    el.innerHTML=`<div class="cal-day">${d}</div>`;
+    // Tags
+    const cellTags=tags[k]||[];
+    cellTags.forEach(t=>{
+      const tag=document.createElement('div');
+      tag.className='cal-tag '+(isToday&&t.type==='income'?'today-tag':t.type);
+      tag.textContent=t.text;
+      el.appendChild(tag);
+    });
+    // Auto-add today's income tag if none exists
+    el.addEventListener('click',()=>openModal(date));
+    grid.appendChild(el);
+  }
+}
+
+function openModal(date){
+  editingDate=key(date);
+  const k=editingDate;
+  document.getElementById('modalTitle').textContent=`${k} 标签管理`;
+  const existing=tags[k]&&tags[k].length?tags[k][0]:null;
+  document.getElementById('tagText').value=existing?existing.text:'';
+  document.getElementById('tagType').value=existing?existing.type:'income';
+  document.getElementById('btnDelete').style.display=existing?'block':'none';
+  document.getElementById('modal').classList.add('show');
+  document.getElementById('tagText').focus();
+}
+function closeModal(){document.getElementById('modal').classList.remove('show');editingDate=null;}
+function saveTag(){
+  const text=document.getElementById('tagText').value.trim();
+  const type=document.getElementById('tagType').value;
+  if(!text){closeModal();return;}
+  tags[editingDate]=[{text,type}];
+  localStorage.setItem('calTags',JSON.stringify(tags));
+  closeModal();render();
+}
+function deleteTag(){
+  delete tags[editingDate];
+  localStorage.setItem('calTags',JSON.stringify(tags));
+  closeModal();render();
+}
+function changeMonth(dir){curMonth+=dir;if(curMonth>11){curMonth=0;curYear++;}if(curMonth<0){curMonth=11;curYear--;}render();}
+function goToday(){curYear=now.getFullYear();curMonth=now.getMonth();render();}
+
+// Seed today's tag if first visit
+(function(){
+  const tk=key(now);
+  if(!tags[tk]){
+    tags[tk]=[{text:'500收入',type:'income'}];
+    localStorage.setItem('calTags',JSON.stringify(tags));
+  }
+})();
+
+render();
+
+// Close modal on overlay click
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal();});
+// Close modal on Escape
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+</script>
+</body>
+</html>
