@@ -64,16 +64,16 @@
         <el-table-column prop="reason" label="事由" show-overflow-tooltip />
         <el-table-column label="状态" width="90">
           <template #default="scope">
-            <el-tag v-if="scope.row.status === 'pending'" type="warning" size="small">待审批</el-tag>
-            <el-tag v-else-if="scope.row.status === 'approved'" type="success" size="small">已通过</el-tag>
-            <el-tag v-else type="danger" size="small">已驳回</el-tag>
+            <el-tag v-if="scope.row.status === 'pending'" type="warning" size="small" class="status-tag">待审批</el-tag>
+            <el-tag v-else-if="scope.row.status === 'approved'" type="success" size="small" class="status-tag">已通过</el-tag>
+            <el-tag v-else type="danger" size="small" class="status-tag">已驳回</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="scope">
             <template v-if="scope.row.status === 'pending'">
-              <el-button size="small" type="success" @click="approve(scope.row)">通过</el-button>
-              <el-button size="small" type="danger" @click="reject(scope.row)">驳回</el-button>
+              <el-button size="small" type="success" class="action-btn" @click="approve(scope.row)">通过</el-button>
+              <el-button size="small" type="danger" class="action-btn" @click="reject(scope.row)">驳回</el-button>
             </template>
             <span v-else style="color: #606060; font-size: 13px;">已处理</span>
           </template>
@@ -137,20 +137,60 @@ function reject(row) {
 
 <style scoped>
 .page-title {
-  font-size: 22px;
-  font-weight: 600;
+  font-size: 28px;
+  font-weight: 700;
   margin: 0 0 24px 0;
   color: #fff;
+  position: relative;
+  display: inline-block;
+  padding-bottom: 8px;
+}
+.page-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, oklch(0.75 0.15 250), oklch(0.65 0.18 270));
 }
 
 .form-card,
 .list-card {
-  background: oklch(0.18 0.005 260);
-  border: 1px solid oklch(0.25 0.005 260);
+  background: oklch(0.18 0.005 260 / 0.6);
+  border: 1px solid oklch(0.25 0.005 260 / 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 12px;
+  animation: fadeInUp 0.5s ease-out backwards;
+}
+.form-card {
+  animation-delay: 0ms;
+}
+.list-card {
+  animation-delay: 100ms;
+}
+
+.form-card :deep(.el-card__header),
+.list-card :deep(.el-card__header) {
+  border-bottom: 1px solid oklch(0.25 0.005 260);
 }
 
 .card-header-text {
   color: #e0e0e0;
   font-weight: 600;
+}
+
+/* 状态标签精致样式 */
+.status-tag {
+  border-radius: 10px;
+  padding: 4px 14px;
+  box-shadow: 0 2px 6px oklch(0 0 0 / 0.15);
+}
+
+/* 操作按钮 hover 颜色过渡 */
+.action-btn {
+  transition: all 0.2s ease !important;
 }
 </style>

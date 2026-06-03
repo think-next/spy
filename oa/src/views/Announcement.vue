@@ -45,7 +45,7 @@
     </el-dialog>
 
     <!-- 查看详情弹窗 -->
-    <el-dialog v-model="showDetail" :title="detailItem.title" width="500px">
+    <el-dialog v-model="showDetail" :title="detailItem.title" width="500px" class="detail-dialog">
       <div class="detail-meta">
         <span>发布者：{{ detailItem.author }}</span>
         <span>日期：{{ detailItem.date }}</span>
@@ -101,15 +101,36 @@ function viewDetail(row) {
 
 <style scoped>
 .page-title {
-  font-size: 22px;
-  font-weight: 600;
+  font-size: 28px;
+  font-weight: 700;
   margin: 0 0 24px 0;
   color: #fff;
+  position: relative;
+  display: inline-block;
+  padding-bottom: 8px;
+}
+.page-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, oklch(0.75 0.15 250), oklch(0.65 0.18 270));
 }
 
 .main-card {
-  background: oklch(0.18 0.005 260);
-  border: 1px solid oklch(0.25 0.005 260);
+  background: oklch(0.18 0.005 260 / 0.6);
+  border: 1px solid oklch(0.25 0.005 260 / 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 12px;
+  animation: fadeInUp 0.5s ease-out backwards;
+  animation-delay: 0ms;
+}
+.main-card :deep(.el-card__header) {
+  border-bottom: 1px solid oklch(0.25 0.005 260);
 }
 
 .card-header {
