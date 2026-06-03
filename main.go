@@ -39,12 +39,17 @@ func main() {
 		http.Redirect(w, r, "/oa/", http.StatusMovedPermanently)
 	})
 	http.Handle("/oa/", http.StripPrefix("/oa/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		p := filepath.Join(oaDist, strings.TrimPrefix(r.URL.Path, "/"))
-		if strings.HasSuffix(r.URL.Path, "/") {
-			p = filepath.Join(p, "index.html")
+		relPath := strings.TrimPrefix(r.URL.Path, "/")
+		if relPath == "" {
+			relPath = "index.html"
 		}
+		p := filepath.Join(oaDist, relPath)
 		if _, err := os.Stat(p); err != nil {
 			http.ServeFile(w, r, filepath.Join(oaDist, "index.html"))
+			return
+		}
+		if fi, _ := os.Stat(p); fi.IsDir() {
+			http.ServeFile(w, r, filepath.Join(p, "index.html"))
 			return
 		}
 		http.ServeFile(w, r, p)
