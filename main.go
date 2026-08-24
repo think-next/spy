@@ -115,6 +115,7 @@ footer{text-align:center;padding:2.5rem 0;color:var(--dim);font-size:.82rem;bord
 <header>
   <h1>🎱 双色球</h1>
   <p>历史开奖数据查询与分析</p>
+  <p style="margin-top:1.2rem;font-style:italic;color:oklch(0.65 0.02 250);font-size:1rem;letter-spacing:0.02em">那不是我的黑历史，那是我的来时路</p>
   <div style="margin-top:1rem;display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap">
     <a href="/ssq" class="badge">🎱 双色球</a>
     <a href="/calendar" class="badge">📅 日历</a>
