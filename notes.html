@@ -64,6 +64,13 @@ button:hover{opacity:.85}
 
 <script>
 const KEY = 'spy_notes';
+function init() {
+  if (!localStorage.getItem(KEY)) {
+    localStorage.setItem(KEY, JSON.stringify([
+      {date: '2026-08-25 08:55', text: '反者道之动，弱者道之用。天道无情，天道无亲。太多东西，之所以事与愿违，仅仅只是因为姿态本身就不\"合道\"。坏人成佛，只需要放下屠刀。笑脸给多了，不笑一次都不是好人。所以，心狠点，姿态拽点，佛祖心中坐，酒肉穿肠过。'}
+    ]));
+  }
+}
 function load() {
   const notes = JSON.parse(localStorage.getItem(KEY) || '[]');
   const el = document.getElementById('notes');
@@ -88,6 +95,7 @@ function delNote(i) {
   load();
 }
 function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+init();
 load();
 </script>
 </body>
