@@ -9,29 +9,12 @@ import (
 	"strings"
 )
 
-var ssqDataPath string
-
 func main() {
-	paths := []string{
-		"data/ssq_1year.json",
-		filepath.Join(os.Getenv("HOME"), ".openclaw/workspace/data/ssq_1year.json"),
-	}
-	for _, p := range paths {
-		if _, err := os.Stat(p); err == nil {
-			ssqDataPath = p
-			break
-		}
-	}
-	if ssqDataPath == "" {
-		ssqDataPath = "data/ssq_1year.json"
-	}
-
 	log.Println("Starting server on :80...")
 
 	http.HandleFunc("/", handleHome)
-	http.HandleFunc("/ssq", handleSSQPage)
+	http.HandleFunc("/notes", handleNotesPage)
 	http.HandleFunc("/calendar", handleCalendarPage)
-	http.HandleFunc("/api/ssq/data", handleSSQData)
 
 	// OA system — serve Vue SPA
 	oaDist := filepath.Join("oa", "dist")
@@ -69,12 +52,25 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=300")
-	fmt.Fprint(w, `<!DOCTYPE html>
+	fmt.Fprint(w, homePage)
+}
+
+func handleNotesPage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	http.ServeFile(w, r, "notes.html")
+}
+
+func handleCalendarPage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	http.ServeFile(w, r, "calendar.html")
+}
+
+const homePage = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>双色球</title>
+<title>Spy</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -102,7 +98,6 @@ header p{color:var(--muted);font-size:1.15rem}
 .badge{display:inline-flex;align-items:center;gap:.4rem;margin-top:1rem;padding:.35rem .9rem;border-radius:999px;background:oklch(0.25 0.01 260);border:1px solid var(--border);font-size:.82rem;color:var(--muted);cursor:pointer}
 .badge:hover{color:var(--fg);border-color:oklch(0.40 0.08 250)}
 footer{text-align:center;padding:2.5rem 0;color:var(--dim);font-size:.82rem;border-top:1px solid var(--border)}
-@keyframes fadeUp{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:640px){
   header{padding:3.5rem 1rem 2.5rem}
   header h1{font-size:2rem}
@@ -113,11 +108,10 @@ footer{text-align:center;padding:2.5rem 0;color:var(--dim);font-size:.82rem;bord
 <body>
 <div class="container">
 <header>
-  <h1>🎱 双色球</h1>
-  <p>历史开奖数据查询与分析</p>
-  <p style="margin-top:1.2rem;font-style:italic;color:oklch(0.65 0.02 250);font-size:1rem;letter-spacing:0.02em">那不是我的黑历史，那是我的来时路</p>
-  <div style="margin-top:1rem;display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap">
-    <a href="/ssq" class="badge">🎱 双色球</a>
+  <h1>🐌 Spy</h1>
+  <p style="margin-top:1.2rem;font-style:italic;color:oklch(0.65 0.02 250);font-size:1.1rem;letter-spacing:0.04em">天地不仁，以万物为刍狗</p>
+  <div style="margin-top:1.5rem;display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap">
+    <a href="/notes" class="badge">📝 笔记</a>
     <a href="/calendar" class="badge">📅 日历</a>
     <a href="/oa/" class="badge">🏢 OA系统</a>
   </div>
@@ -125,30 +119,4 @@ footer{text-align:center;padding:2.5rem 0;color:var(--dim);font-size:.82rem;bord
 <footer><span>Go</span></footer>
 </div>
 </body>
-</html>`)
-}
-
-func handleCalendarPage(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	http.ServeFile(w, r, "calendar.html")
-}
-
-func handleSSQPage(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "public, max-age=300")
-	http.ServeFile(w, r, "ssq.html")
-}
-
-func handleSSQData(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Cache-Control", "public, max-age=3600")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	data, err := os.ReadFile(ssqDataPath)
-	if err != nil {
-		log.Printf("SSQ data read error: %v", err)
-		http.Error(w, "data not found", http.StatusNotFound)
-		return
-	}
-	w.Write(data)
-}
+</html>`

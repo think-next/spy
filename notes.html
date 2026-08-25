@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>笔记</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:oklch(0.13 0.005 260);
+  --surface:oklch(0.17 0.005 260);
+  --card:oklch(0.20 0.006 260);
+  --border:oklch(0.27 0.006 260);
+  --fg:oklch(0.92 0 0);
+  --muted:oklch(0.60 0 0);
+  --dim:oklch(0.42 0 0);
+  --accent:oklch(0.75 0.15 250);
+  --radius:0.75rem;
+  --font-sans:'Inter',system-ui,-apple-system,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font-sans);background:var(--bg);color:var(--fg);line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none;transition:color .2s}
+a:hover{color:oklch(0.85 0.18 250)}
+.container{max-width:800px;margin:0 auto;padding:0 1.5rem}
+header{text-align:center;padding:3rem 1rem 2rem;border-bottom:1px solid var(--border);margin-bottom:2rem}
+header h1{font-size:2rem;font-weight:700;letter-spacing:-0.03em;margin-bottom:.5rem}
+header p{color:var(--muted);font-size:.9rem}
+.note-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1rem;transition:border-color .2s}
+.note-card:hover{border-color:oklch(0.40 0.08 250)}
+.note-card .date{color:var(--dim);font-size:.8rem;margin-bottom:.5rem}
+.note-card .content{font-size:1.05rem;line-height:1.8;white-space:pre-wrap}
+textarea{width:100%;min-height:120px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;color:var(--fg);font-family:var(--font-sans);font-size:1rem;resize:vertical;outline:none;transition:border-color .2s}
+textarea:focus{border-color:var(--accent)}
+.actions{display:flex;gap:.6rem;margin-top:.8rem;justify-content:flex-end}
+button{background:var(--accent);color:oklch(0.13 0 0);border:none;padding:.5rem 1.2rem;border-radius:var(--radius);font-size:.9rem;font-weight:600;cursor:pointer;transition:opacity .2s}
+button:hover{opacity:.85}
+.btn-del{background:transparent;border:1px solid var(--border);color:var(--muted)}
+.btn-del:hover{color:oklch(0.7 0.15 25);border-color:oklch(0.7 0.15 25)}
+.nav-back{text-align:center;margin-top:2rem}
+@keyframes fadeUp{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:640px){.container{padding:0 1rem}header h1{font-size:1.5rem}}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <h1>📝 笔记</h1>
+  <p>随手记点什么</p>
+</header>
+
+<div id="notes"></div>
+
+<div style="margin-bottom:2rem">
+  <textarea id="input" placeholder="写点什么..."></textarea>
+  <div class="actions">
+    <button onclick="addNote()">添加</button>
+  </div>
+</div>
+
+<div class="nav-back"><a href="/">← 返回首页</a></div>
+</div>
+
+<script>
+const KEY = 'spy_notes';
+function load() {
+  const notes = JSON.parse(localStorage.getItem(KEY) || '[]');
+  const el = document.getElementById('notes');
+  el.innerHTML = notes.map((n, i) => 
+    `<div class="note-card"><div class="date">${n.date}</div><div class="content">${esc(n.text)}</div><div class="actions"><button class="btn-del" onclick="delNote(${i})">删除</button></div></div>`
+  ).join('');
+}
+function addNote() {
+  const input = document.getElementById('input');
+  const text = input.value.trim();
+  if (!text) return;
+  const notes = JSON.parse(localStorage.getItem(KEY) || '[]');
+  notes.unshift({ date: new Date().toLocaleString('zh-CN'), text });
+  localStorage.setItem(KEY, JSON.stringify(notes));
+  input.value = '';
+  load();
+}
+function delNote(i) {
+  const notes = JSON.parse(localStorage.getItem(KEY) || '[]');
+  notes.splice(i, 1);
+  localStorage.setItem(KEY, JSON.stringify(notes));
+  load();
+}
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+load();
+</script>
+</body>
+</html>
